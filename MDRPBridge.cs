@@ -26,7 +26,7 @@ namespace MusicBeePlugin
             about.Type = PluginType.General;
             about.VersionMajor = 1;  // your plugin version
             about.VersionMinor = 0;
-            about.Revision = 0;
+            about.Revision = 1;
             about.MinInterfaceVersion = MinInterfaceVersion;
             about.MinApiRevision = MinApiRevision;
             about.ReceiveNotifications = (ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents);
@@ -45,18 +45,29 @@ namespace MusicBeePlugin
                     string action = (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing) ? "play" : "pause";
                     long timestamp = (long)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds + (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing ? mbApiInterface.NowPlaying_GetDuration.Invoke() - mbApiInterface.Player_GetPosition.Invoke() : 10000) ;
                     Console.WriteLine(mbApiInterface.Player_GetPosition.Invoke());
-                    Uri url = new Uri("http://localhost:2357/");
-                    HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                    request.Method = "POST";
-                    request.ContentType = "text/json";
-                    string json = string.Format("{{player:\"musicbee\",timestamp:\"{0}\",action:\"{1}\",title:\"{2}\",artist:\"{3}\",album:\"{4}\"}}", timestamp.ToString(), action, songtitle, artist, albumtitle);
+                    string json = string.Format("{{player:\"musicbee\",timestamp:\"{0}\",action:\"{1}\",title:\"{2}\",artist:\"{3}\",album:\"{4}\"}}", timestamp.ToString(), action, songtitle.Replace("\"","\\\""), artist.Replace("\"","\\\""), albumtitle.Replace("\"","\\\""));
                     Console.WriteLine(json);
-                    byte[] arr = Encoding.UTF8.GetBytes(json);
-                request.ContentLength = arr.Length;
+                    try
+                    {
+                        HttpWebRequest request = doRequest(json);
+                        HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+                        string text = "";
+                        using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+                        {
+                            text = reader.ReadToEnd();
+                        }
+                        Console.WriteLine(text);
+                        response.Close();
+                    } catch (Exception)
+                    {
+                        Console.WriteLine("MDRP not open");
+                    }
+            } else if (type == NotificationType.ShutdownStarted)
+            {
                 try
                 {
-                    var rs = request.GetRequestStream();
-                    rs.Write(arr, 0, arr.Length);
+                    string json = "{{player:\"musicbee\"action:\"shutdown\"}}";
+                    HttpWebRequest request = doRequest(json);
                     HttpWebResponse response = (HttpWebResponse)request.GetResponse();
                     string text = "";
                     using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
@@ -70,6 +81,25 @@ namespace MusicBeePlugin
                     Console.WriteLine("MDRP not open");
                 }
             }
+        }
+
+        public HttpWebRequest doRequest(string json)
+        {
+            Uri url = new Uri("http://localhost:2357/");
+            HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+            request.Method = "POST";
+            request.ContentType = "text/json";
+            string urlEncoded = Uri.EscapeUriString(json);
+            byte[] arr = Encoding.UTF8.GetBytes(urlEncoded);
+            try
+            {
+                var rs = request.GetRequestStream();
+                rs.Write(arr, 0, arr.Length);
+            } catch (Exception)
+            {
+                return null;
+            }
+            return request;
         }
     }
 }

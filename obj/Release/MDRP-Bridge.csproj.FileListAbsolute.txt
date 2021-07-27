@@ -1,0 +1,7 @@
+D:\Documents\MDRP-MusicBee-Plugin\bin\Release\mb_MDRPBridge.dll.config
+D:\Documents\MDRP-MusicBee-Plugin\bin\Release\mb_MDRPBridge.dll
+D:\Documents\MDRP-MusicBee-Plugin\bin\Release\mb_MDRPBridge.pdb
+D:\Documents\MDRP-MusicBee-Plugin\obj\Release\MDRP-Bridge.csprojAssemblyReference.cache
+D:\Documents\MDRP-MusicBee-Plugin\obj\Release\MDRP-Bridge.csproj.CoreCompileInputs.cache
+D:\Documents\MDRP-MusicBee-Plugin\obj\Release\mb_MDRPBridge.dll
+D:\Documents\MDRP-MusicBee-Plugin\obj\Release\mb_MDRPBridge.pdb
