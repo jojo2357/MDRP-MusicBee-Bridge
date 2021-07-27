@@ -1,0 +1,7 @@
+C:\Users\Joey\Documents\GitHub\MDRP-MusicBee-Bridge\obj\Debug\CSharpDll.csproj.AssemblyReference.cache
+C:\Users\Joey\Documents\GitHub\MDRP-MusicBee-Bridge\obj\Debug\CSharpDll.csproj.CoreCompileInputs.cache
+C:\Users\Joey\Documents\GitHub\MDRP-MusicBee-Bridge\bin\Debug\mb_MDRPBridge.dll.config
+C:\Users\Joey\Documents\GitHub\MDRP-MusicBee-Bridge\bin\Debug\mb_MDRPBridge.dll
+C:\Users\Joey\Documents\GitHub\MDRP-MusicBee-Bridge\bin\Debug\mb_MDRPBridge.pdb
+C:\Users\Joey\Documents\GitHub\MDRP-MusicBee-Bridge\obj\Debug\mb_MDRPBridge.dll
+C:\Users\Joey\Documents\GitHub\MDRP-MusicBee-Bridge\obj\Debug\mb_MDRPBridge.pdb

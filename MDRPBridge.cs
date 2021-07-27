@@ -5,6 +5,7 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text;
 
 namespace MusicBeePlugin
 {
@@ -20,12 +21,12 @@ namespace MusicBeePlugin
             about.PluginInfoVersion = PluginInfoVersion;
             about.Name = "MDRP Bridge";
             about.Description = "Bridges the audio information from MusicBee to Music Discord Rich Presence";
-            about.Author = "Smaltin";
+            about.Author = "Smaltin & jojo2357";
             about.TargetApplication = "";   //  the name of a Plugin Storage device or panel header for a dockable panel
             about.Type = PluginType.General;
             about.VersionMajor = 1;  // your plugin version
             about.VersionMinor = 0;
-            about.Revision = 1;
+            about.Revision = 0;
             about.MinInterfaceVersion = MinInterfaceVersion;
             about.MinApiRevision = MinApiRevision;
             about.ReceiveNotifications = (ReceiveNotificationFlags.PlayerEvents | ReceiveNotificationFlags.TagEvents);
@@ -36,28 +37,38 @@ namespace MusicBeePlugin
         public void ReceiveNotification(string sourceFileUrl, NotificationType type)
         {
             // perform some action depending on the notification type
-            if (type == NotificationType.TrackChanged) {
+            if (type == NotificationType.TrackChanged || type == NotificationType.PlayStateChanged) {
+                Console.WriteLine("Ping pong");
                     string artist = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Artist);
                     string albumtitle = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Album);
                     string songtitle = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.TrackTitle);
                     string action = (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing) ? "play" : "pause";
-                    double timestamp = DateTime.Now.Ticks +
-                                       mbApiInterface.NowPlaying_GetDuration.Invoke();
-                    //string url = "localhost:2357?player=musicbee&timestamp=" + mbApiInterface.NowPlaying_GetDuration + "&action=" + action + "&title=" + songtitle + "&artist=" + artist + "&album=" + albumtitle;
-                    string url = "localhost:2357";
+                    long timestamp = (long)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds + (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing ? mbApiInterface.NowPlaying_GetDuration.Invoke() - mbApiInterface.Player_GetPosition.Invoke() : 10000) ;
+                    Console.WriteLine(mbApiInterface.Player_GetPosition.Invoke());
+                    Uri url = new Uri("http://localhost:2357/");
                     HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
-                    using (var streamWriter = new StreamWriter(request.GetRequestStream()))
-                    {
-                        string json = string.Format("{{player:\"musicbee\",timestamp:\"{0}\",action:\"play\",title:\"{1}\",artist:\"{2}\",album:\"{3}\"}}", timestamp.ToString(), songtitle, artist, albumtitle);
-
-                        streamWriter.Write(json);
-                    }
                     request.Method = "POST";
                     request.ContentType = "text/json";
-                    request.TransferEncoding = "UTF8";
-                    request.ContentLength = url.Length;
+                    string json = string.Format("{{player:\"musicbee\",timestamp:\"{0}\",action:\"{1}\",title:\"{2}\",artist:\"{3}\",album:\"{4}\"}}", timestamp.ToString(), action, songtitle, artist, albumtitle);
+                    Console.WriteLine(json);
+                    byte[] arr = Encoding.UTF8.GetBytes(json);
+                request.ContentLength = arr.Length;
+                try
+                {
+                    var rs = request.GetRequestStream();
+                    rs.Write(arr, 0, arr.Length);
                     HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+                    string text = "";
+                    using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+                    {
+                        text = reader.ReadToEnd();
+                    }
+                    Console.WriteLine(text);
                     response.Close();
+                } catch (Exception)
+                {
+                    Console.WriteLine("MDRP not open");
+                }
             }
         }
     }
