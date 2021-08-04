@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("MDRP-MB_Bridge")]
 [assembly: AssemblyDescription("Bridges the audio information from MusicBee to Music Discord Rich Presence")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("jojo2357 & Smaltin")]
 [assembly: AssemblyProduct("MDRP-MB_Bridge")]
-[assembly: AssemblyCopyright("Copyright ©  2010")]
+[assembly: AssemblyCopyright("Copyright ©  2021")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

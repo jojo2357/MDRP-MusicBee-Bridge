@@ -112,9 +112,7 @@
   </ItemGroup>
   <ItemGroup />
   <Target Name="AfterBuild">
-    <Copy SourceFiles="@(MySourceFiles)" DestinationFolder="D:\MusicBee\Plugins" OverwriteReadOnlyFiles="true" />
   </Target>
   <PropertyGroup>
-    <PostBuildEvent>copy /Y "$(TargetDir)\*.*" "D:\MusicBee\Plugins\"</PostBuildEvent>
   </PropertyGroup>
 </Project>
