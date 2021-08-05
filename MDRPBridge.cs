@@ -116,7 +116,7 @@ namespace MusicBeePlugin
 				}
 			}*/
 		}
-		
+
 		public void Close(PluginCloseReason reason)
 		{
 			try
