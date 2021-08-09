@@ -13,6 +13,20 @@ namespace MusicBeePlugin
 	{
 		private MusicBeeApiInterface mbApiInterface;
 		private PluginInfo about = new PluginInfo();
+		private Control penel;
+
+		private enum MDRPStatus
+		{
+			KEYED,
+			PAUSED,
+			UNKEYED,
+			KEYED_WRONG,
+			NOT_RUNNING
+		}
+
+		private MDRPStatus currentStatus = MDRPStatus.NOT_RUNNING;
+		
+		private Image[] images = new Image[5];
 
 		public PluginInfo Initialise(IntPtr apiInterfacePtr)
 		{
@@ -22,7 +36,7 @@ namespace MusicBeePlugin
 			about.Name = "MDRP Bridge";
 			about.Description = "Bridges the audio information from MusicBee to Music Discord Rich Presence";
 			about.Author = "Smaltin & jojo2357";
-			about.TargetApplication = "Panel Header Text"; //  the name of a Plugin Storage device or panel header for a dockable panel
+			about.TargetApplication = "bottom panel"; //  the name of a Plugin Storage device or panel header for a dockable panel
 			about.Type = PluginType.General;
 			about.VersionMajor = 1; // your plugin version
 			about.VersionMinor = 0;
@@ -57,19 +71,32 @@ namespace MusicBeePlugin
 				Console.WriteLine(json);
 				try
 				{
-					HttpWebRequest request = doRequest(json);
+					HttpWebRequest request = doRequest(json, 2357);
 					HttpWebResponse response = (HttpWebResponse) request.GetResponse();
 					string text = "";
-					using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
+					using (StreamReader reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
 					{
 						text = reader.ReadToEnd();
 					}
 
+					if (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing)
+					{
+						currentStatus = MDRPStatus.KEYED;
+						penel.Refresh();
+					}
+					else
+					{
+						currentStatus = MDRPStatus.PAUSED;
+						penel.Refresh();
+					}
 					Console.WriteLine(text);
 					response.Close();
 				}
-				catch (Exception)
+				catch (Exception e)
 				{
+					doRequest(e.ToString(), 7532).GetResponse().Close();
+					currentStatus = MDRPStatus.NOT_RUNNING;
+					penel.Refresh();
 					Console.WriteLine("MDRP not open");
 				}
 			}
@@ -122,29 +149,31 @@ namespace MusicBeePlugin
 			try
 			{
 				string json = "{player:\"musicbee\",action:\"shutdown\"}";
-				HttpWebRequest request = doRequest(json);
+				HttpWebRequest request = doRequest(json, 2357);
 				HttpWebResponse response = (HttpWebResponse) request.GetResponse();
 				string text = "";
 				using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
 				{
 					text = reader.ReadToEnd();
 				}
-
 				Console.WriteLine(text);
 				response.Close();
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
+				doRequest(e.ToString(), 7532).GetResponse().Close();
+				currentStatus = MDRPStatus.NOT_RUNNING;
 				Console.WriteLine("MDRP not open");
 			}
 		}
 
-		public HttpWebRequest doRequest(string json)
+		public HttpWebRequest doRequest(string json, int channel)
 		{
-			Uri url = new Uri("http://localhost:2357/");
+			Uri url = new Uri("http://localhost:" + channel + "/");
 			HttpWebRequest request = (HttpWebRequest) WebRequest.Create(url);
 			request.Method = "POST";
 			request.ContentType = "text/json";
+			request.Timeout = 500;
 			string urlEncoded = Uri.EscapeUriString(json);
 			byte[] arr = Encoding.UTF8.GetBytes(urlEncoded);
 			try
@@ -152,15 +181,22 @@ namespace MusicBeePlugin
 				var rs = request.GetRequestStream();
 				rs.Write(arr, 0, arr.Length);
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
+				doRequest(e.ToString(), 7532).GetResponse().Close();
 				return null;
 			}
 
 			return request;
 		}
+
+		public int OnBottomPanelCreated(Control Panel)
+		{
+			doRequest("Whaaaaa", 7532);
+			return -1;
+		}
 		
-		        //  presence of this function indicates to MusicBee that this plugin has a dockable panel. MusicBee will create the control and pass it as the panel parameter
+		//  presence of this function indicates to MusicBee that this plugin has a dockable panel. MusicBee will create the control and pass it as the panel parameter
         //  you can add your own controls to the panel if needed
         //  you can control the scrollable area of the panel using the mbApiInterface.MB_SetPanelScrollableArea function
         //  to set a MusicBee header for the panel, set about.TargetApplication in the Initialise function above to the panel header text
@@ -171,13 +207,26 @@ namespace MusicBeePlugin
           //    < 0 indicates to MusicBee this control is resizable and should be sized to fill the panel it is docked to in MusicBee
           //    = 0 indicates to MusicBee this control resizeable
           //    > 0 indicates to MusicBee the fixed height for the control.Note it is recommended you scale the height for high DPI screens(create a graphics object and get the DpiY value)
-             float dpiScaling = 0;
+	        float dpiScaling = 0;
             using (Graphics g = panel.CreateGraphics())
             {
                 dpiScaling = g.DpiY / 96f;
             }
+			LoadAllImages();
+            panel.Name = "MDRP status";
             panel.Paint += panel_Paint;
-            return Convert.ToInt32(100 * dpiScaling);
+            penel = panel;
+            return Convert.ToInt32(64 * dpiScaling);
+        }
+
+        private void LoadAllImages()
+        {
+	        string assetDir = "C:\\Users\\Joey\\Documents\\GitHub\\MDRP-MusicBee-Bridge\\assets\\";
+	        images[(int)MDRPStatus.KEYED] = Image.FromFile(assetDir + "keyed.png");
+	        images[(int)MDRPStatus.PAUSED] = Image.FromFile(assetDir + "paused.png");
+	        images[(int)MDRPStatus.UNKEYED] = Image.FromFile(assetDir + "unkeyed.png");
+	        images[(int)MDRPStatus.KEYED_WRONG] = Image.FromFile(assetDir + "invalid.png");
+	        images[(int)MDRPStatus.NOT_RUNNING] = Image.FromFile(assetDir + "offline.png");
         }
 
         // presence of this function indicates to MusicBee that the dockable panel created above will show menu items when the panel header is clicked
@@ -191,8 +240,9 @@ namespace MusicBeePlugin
 
         private void panel_Paint(object sender, PaintEventArgs e)
         {
-            e.Graphics.Clear(Color.Red);
-            TextRenderer.DrawText(e.Graphics, "hello", SystemFonts.CaptionFont, new Point(10, 10), Color.Blue);
+	        e.Graphics.Clear(Color.Black);
+	        e.Graphics.DrawImage(images[(int)currentStatus], 0, 0, 64,64);
+	        TextRenderer.DrawText(e.Graphics, "hello " + currentStatus, SystemFonts.CaptionFont, new Point(10, 10), Color.White);
         }
 	}
 }
