@@ -36,7 +36,7 @@ namespace MusicBeePlugin
 			about.Name = "MDRP Bridge";
 			about.Description = "Bridges the audio information from MusicBee to Music Discord Rich Presence";
 			about.Author = "Smaltin & jojo2357";
-			about.TargetApplication = "bottom panel"; //  the name of a Plugin Storage device or panel header for a dockable panel
+			about.TargetApplication = "MDRP Status"; //  the name of a Plugin Storage device or panel header for a dockable panel
 			about.Type = PluginType.General;
 			about.VersionMajor = 1; // your plugin version
 			about.VersionMinor = 0;
@@ -79,16 +79,25 @@ namespace MusicBeePlugin
 						text = reader.ReadToEnd();
 					}
 
-					if (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing)
-					{
-						currentStatus = MDRPStatus.KEYED;
-						penel.Refresh();
-					}
-					else
+					MDRPStatus lastStatus = currentStatus;
+					if (action == "pause")
 					{
 						currentStatus = MDRPStatus.PAUSED;
-						penel.Refresh();
+					} 
+					else if (text.Contains("response:\"keyed successfully\""))
+					{
+						currentStatus = MDRPStatus.KEYED;
+					} 
+					else if (text.Contains("response:\"keyed incorrectly\""))
+					{
+						currentStatus = MDRPStatus.KEYED_WRONG;
+					} 
+					else if (text.Contains("response:\"no key\""))
+					{
+						currentStatus = MDRPStatus.UNKEYED;
 					}
+					if (currentStatus != lastStatus)
+						penel.Refresh();
 					Console.WriteLine(text);
 					response.Close();
 				}
@@ -100,48 +109,6 @@ namespace MusicBeePlugin
 					Console.WriteLine("MDRP not open");
 				}
 			}
-			/*else if (type == NotificationType.ShutdownStarted)
-			{
-				try
-				{
-					string json = "{{player:\"musicbee\",action:\"shutdown\"}}";
-					HttpWebRequest request = doRequest(json);
-					HttpWebResponse response = (HttpWebResponse) request.GetResponse();
-					string text = "";
-					using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
-					{
-						text = reader.ReadToEnd();
-					}
-
-					Console.WriteLine(text);
-					response.Close();
-				}
-				catch (Exception)
-				{
-					Console.WriteLine("MDRP not open");
-				}
-			}
-			else
-			{
-				try
-				{
-					string json = "{" + type + "}";
-					HttpWebRequest request = doRequest(json);
-					HttpWebResponse response = (HttpWebResponse) request.GetResponse();
-					string text = "";
-					using (var reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
-					{
-						text = reader.ReadToEnd();
-					}
-
-					Console.WriteLine(text);
-					response.Close();
-				}
-				catch (Exception)
-				{
-					Console.WriteLine("MDRP not open");
-				}
-			}*/
 		}
 
 		public void Close(PluginCloseReason reason)
@@ -183,17 +150,17 @@ namespace MusicBeePlugin
 			}
 			catch (Exception e)
 			{
-				doRequest(e.ToString(), 7532).GetResponse().Close();
+				try
+				{
+					doRequest(e.ToString(), 7532).GetResponse().Close();
+				}
+				catch (Exception)
+				{ }
+
 				return null;
 			}
 
 			return request;
-		}
-
-		public int OnBottomPanelCreated(Control Panel)
-		{
-			doRequest("Whaaaaa", 7532);
-			return -1;
 		}
 		
 		//  presence of this function indicates to MusicBee that this plugin has a dockable panel. MusicBee will create the control and pass it as the panel parameter
