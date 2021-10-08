@@ -7,6 +7,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.NetworkInformation;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,6 +25,9 @@ namespace MusicBeePlugin
 		private Menu menu;
 		private Exception lastEx = null;
 		private const string defaultAssetEndpoint = "https://jojo2357.github.io/MDRP-Bridge-Assets";
+		private const int PackRescanFrequency = 1800000;
+		private static string[] _listOfPacks;
+		private static readonly Stopwatch _lastPackCheckTimer = new Stopwatch();
 
 		private enum MDRPStatus
 		{
@@ -120,10 +125,9 @@ namespace MusicBeePlugin
 					startInfo.WindowStyle = ProcessWindowStyle.Minimized;
 					startInfo.Arguments = "MusicBee";
 					Process.Start(startInfo);
-					Thread.Sleep(500);
 					try
 					{
-						HttpWebResponse response = (HttpWebResponse)doRequest("{player:\"MusicBee\"}", 2357).GetResponse();
+						HttpWebResponse response = (HttpWebResponse)doRequest("{player:\"MusicBee\"}", 2357, 1500).GetResponse();
 						string resptext;
 						using (StreamReader reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
 						{
@@ -327,7 +331,6 @@ namespace MusicBeePlugin
 			{
 				ValidMarker.Visible = false;
 			}
-			SendToDebugServer(ValidMarker.Visible.ToString());
 		}
 		
 		public void Close(PluginCloseReason reason)
@@ -335,7 +338,7 @@ namespace MusicBeePlugin
 			try
 			{
 				string json = "{player:\"musicbee\",action:\"shutdown\"}";
-				HttpWebRequest request = doRequest(json, 2357);
+				HttpWebRequest request = doRequest(json, 2357, 100);
 				HttpWebResponse response = (HttpWebResponse) request.GetResponse();
 				string text = "";
 				using (StreamReader reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
@@ -347,7 +350,7 @@ namespace MusicBeePlugin
 			}
 			catch (Exception e)
 			{
-				SendToDebugServer(e.ToString());
+				//SendToDebugServer(e.ToString());
 			}
 			if (_settings.KillOnClose) 
 				foreach (Process process in Process.GetProcessesByName("MDRP"))
@@ -358,11 +361,20 @@ namespace MusicBeePlugin
 
 		public static HttpWebRequest doRequest(string json, int channel)
 		{
+			return doRequest(json, channel, 500);
+		}
+
+		private static HttpWebRequest doRequest(string json, int channel, int timeout)
+		{
+			if (!IsServerRunning(channel))
+			{
+				return null;
+			}
 			Uri url = new Uri("http://localhost:" + channel + "/");
 			HttpWebRequest request = (HttpWebRequest) WebRequest.Create(url);
 			request.Method = "POST";
 			request.ContentType = "text/json";
-			request.Timeout = 700;
+			request.Timeout = timeout;
 			string urlEncoded = Uri.EscapeUriString(json);
 			byte[] arr = Encoding.UTF8.GetBytes(urlEncoded);
 			try
@@ -382,14 +394,27 @@ namespace MusicBeePlugin
 
 		public static SkinSelectorItem[] getSkins()
 		{
-			WebClient wc = new WebClient();
-			SendToDebugServer(defaultAssetEndpoint + "/hostedpacks.dat");
-			string allpacks = wc.DownloadString(defaultAssetEndpoint + "/hostedpacks.dat");
-			string[] listOfPacks = allpacks.Split('\n').Where((str) => str.Length > 0).ToArray();
-			SkinSelectorItem[] itemsOut = new SkinSelectorItem[listOfPacks.Length];
+			if (_listOfPacks == null || _lastPackCheckTimer.ElapsedMilliseconds > PackRescanFrequency)
+			{
+				try
+				{
+					WebClient wc = new WebClient();
+					//SendToDebugServer(defaultAssetEndpoint + "/hostedpacks.dat");
+					string allpacks = wc.DownloadString(defaultAssetEndpoint + "/hostedpacks.dat");
+					_listOfPacks = allpacks.Split('\n').Where((str) => str.Length > 0).ToArray();
+					_lastPackCheckTimer.Restart();
+				}
+				catch (Exception)
+				{
+					return new[] { new SkinSelectorItem() { ID = 1, Text = "standard" } };
+				}
+			}
+			else 
+				SendToDebugServer(_lastPackCheckTimer.ElapsedMilliseconds.ToString());
+			SkinSelectorItem[] itemsOut = new SkinSelectorItem[_listOfPacks.Length];
 			for (int i = 0; i < itemsOut.Length; i++)
 			{
-				itemsOut[i] = new SkinSelectorItem { ID = i + 1, Text = listOfPacks[i] };
+				itemsOut[i] = new SkinSelectorItem { ID = i + 1, Text = _listOfPacks[i] };
 			}
 
 			return itemsOut;
@@ -423,7 +448,6 @@ namespace MusicBeePlugin
         {
 	        try
 	        {
-		        //doRequest("clique", 7532).GetResponse().Close();
 		        if (menu.IsDisposed) menu = new Menu();
 		        //todo add menu coloring to match theme
 		        /*menu.SetColors(Color.FromArgb(mbApiInterface.Setting_GetSkinElementColour(SkinElement.SkinInputControl,
@@ -431,6 +455,7 @@ namespace MusicBeePlugin
 			        ElementComponent.ComponentBackground)), Color.FromArgb(mbApiInterface.Setting_GetSkinElementColour(SkinElement.SkinInputControl,
 			        ElementState.ElementStateDefault,
 			        ElementComponent.ComponentForeground)));*/
+		        menu.SelectSkins();
 				menu.Show();
 	        }
 	        catch (Exception ex)
@@ -487,11 +512,27 @@ namespace MusicBeePlugin
 	        File.Delete(Path.Combine(persistentpath, "mdrpbridgesettings.dat"));
         }
 
+        private static bool IsServerRunning(int port)
+        {
+	        try
+	        {
+		        using (TcpClient client = new TcpClient("localhost", port))
+			        return client.Connected;
+	        }
+	        catch (Exception e)
+	        {
+		        return false;
+	        }
+        }
+
         private static void SendToDebugServer(string message)
         {
 	        try
 	        {
-				doRequest(message, 7532).GetResponse().Close();
+		        if (IsServerRunning(7532))
+		        {
+			        doRequest(message, 7532, 100).GetResponse().Close();
+		        }
 	        }
 	        catch (Exception e)
 	        {

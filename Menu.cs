@@ -103,5 +103,10 @@ namespace MusicBeePlugin
         {
 	        OnSaveLocation(sender, e);
         }
+
+        public void SelectSkins()
+        {
+	        this.SkinSelector.DataSource = Plugin.getSkins();
+        }
     }
 }

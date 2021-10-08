@@ -206,5 +206,6 @@ namespace MusicBeePlugin
 		private System.Windows.Forms.TextBox MDRPLocationInput;
 		private System.Windows.Forms.Label MDRPLocationLabel;
 		private System.Windows.Forms.ToolTip MDRPLocationToolTip;
+		
 	}
 }
