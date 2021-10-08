@@ -131,6 +131,7 @@ namespace MusicBeePlugin
 			// 
 			// SkinSelector
 			// 
+			this.SkinSelector.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
 			this.SkinSelector.Location = new System.Drawing.Point(174, 129);
 			this.SkinSelector.Name = "SkinSelector";
 			this.SkinSelector.Size = new System.Drawing.Size(261, 21);

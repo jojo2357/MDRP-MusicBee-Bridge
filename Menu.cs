@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace MusicBeePlugin
@@ -10,7 +11,7 @@ namespace MusicBeePlugin
     {
 	    private readonly Plugin.MusicBeeApiInterface _mbApiInterface;
 	    private readonly Plugin.PluginInfo _about;
-
+	    
 	    public Menu()
         {
             InitializeComponent();
@@ -29,7 +30,7 @@ namespace MusicBeePlugin
 
         private void UpdateAll()
         {
-            Settings currentSettings = Plugin.GetCurrentSettings();
+            Settings currentSettings = Plugin.pluginstance.GetCurrentSettings();
             MDRPLocationInput.Text = currentSettings.MDRPLocation;
             AutoRun.Checked = currentSettings.AutoRun;
             AutoCloseButton.Checked = currentSettings.KillOnClose;
@@ -72,31 +73,18 @@ namespace MusicBeePlugin
 
         private void OnSaveLocation(object sender, EventArgs e)
         {
-	        Plugin.SetSettings(new Settings(MDRPLocationInput.Text, AutoRun.Checked, AutoCloseButton.Checked, ((SkinSelectorItem)SkinSelector.SelectedItem).Text));
+	        if (Plugin.pluginstance.GetCurrentSettings().AssetPackName != ((SkinSelectorItem)SkinSelector.SelectedItem).Text)
+	        {
+		        Plugin.pluginstance.LoadAllImages(((SkinSelectorItem)SkinSelector.SelectedItem).Text);
+		        Plugin.pluginstance.Refresh();
+	        }
+	        Plugin.pluginstance.SetSettings(new Settings(MDRPLocationInput.Text, AutoRun.Checked, AutoCloseButton.Checked, ((SkinSelectorItem)SkinSelector.SelectedItem).Text));
 	        UpdateAll();
         }
 
         private void VerifyLocation(object sender, EventArgs e)
         {
-	        MDRPLocationInput.SelectionLength = 0;
-	        if (File.Exists(Path.Combine(MDRPLocationInput.Text, "MDRP.exe")))
-	        {
-		        MDRPLocationInput.Text = Path.Combine(MDRPLocationInput.Text, "MDRP.exe");
-		        MDRPLocationInput.SelectionStart = MDRPLocationInput.Text.Length;
-		        ValidMarker.Visible = true;
-	        } else if (File.Exists(Path.Combine(MDRPLocationInput.Text, "MDRP\\bin\\release\\MDRP.exe")))
-	        {
-		        MDRPLocationInput.Text = Path.Combine(MDRPLocationInput.Text, "MDRP\\bin\\release\\MDRP.exe");
-		        MDRPLocationInput.SelectionStart = MDRPLocationInput.Text.Length;
-		        ValidMarker.Visible = true;
-	        } else if (File.Exists(MDRPLocationInput.Text) && MDRPLocationInput.Text.EndsWith("MDRP.exe"))
-	        {
-		        MDRPLocationInput.SelectionStart = MDRPLocationInput.Text.Length - 1;
-		        ValidMarker.Visible = true;
-	        } else
-	        {
-		        ValidMarker.Visible = false;
-	        }
+	        ValidMarker.Visible = Plugin.InputTextHasMDRP(MDRPLocationInput);
         }
 
         private void SettingChanged(object sender, EventArgs e)
