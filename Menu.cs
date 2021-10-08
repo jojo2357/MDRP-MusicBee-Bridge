@@ -33,6 +33,14 @@ namespace MusicBeePlugin
             MDRPLocationInput.Text = currentSettings.MDRPLocation;
             AutoRun.Checked = currentSettings.AutoRun;
             AutoCloseButton.Checked = currentSettings.KillOnClose;
+            for (int i = 0; i < SkinSelector.Items.Count; i++)
+            {
+	            if (((SkinSelectorItem)SkinSelector.Items[i]).Text == currentSettings.AssetPackName)
+	            {
+		            SkinSelector.SelectedItem = SkinSelector.Items[i];
+		            break;
+	            }
+            }
         }
 
         private void OnVisibleChanged(object sender, EventArgs eventArgs)
@@ -64,7 +72,7 @@ namespace MusicBeePlugin
 
         private void OnSaveLocation(object sender, EventArgs e)
         {
-	        Plugin.SetSettings(new Settings(MDRPLocationInput.Text, AutoRun.Checked, AutoCloseButton.Checked));
+	        Plugin.SetSettings(new Settings(MDRPLocationInput.Text, AutoRun.Checked, AutoCloseButton.Checked, ((SkinSelectorItem)SkinSelector.SelectedItem).Text));
 	        UpdateAll();
         }
 
@@ -75,23 +83,19 @@ namespace MusicBeePlugin
 	        {
 		        MDRPLocationInput.Text = Path.Combine(MDRPLocationInput.Text, "MDRP.exe");
 		        MDRPLocationInput.SelectionStart = MDRPLocationInput.Text.Length;
-		        MDRPLocationInput.ForeColor = Color.Green;
-		        MDRPLocationInput.BackColor = Color.Black;
+		        ValidMarker.Visible = true;
 	        } else if (File.Exists(Path.Combine(MDRPLocationInput.Text, "MDRP\\bin\\release\\MDRP.exe")))
 	        {
 		        MDRPLocationInput.Text = Path.Combine(MDRPLocationInput.Text, "MDRP\\bin\\release\\MDRP.exe");
 		        MDRPLocationInput.SelectionStart = MDRPLocationInput.Text.Length;
-		        MDRPLocationInput.ForeColor = Color.Green;
-		        MDRPLocationInput.BackColor = Color.Black;
+		        ValidMarker.Visible = true;
 	        } else if (File.Exists(MDRPLocationInput.Text) && MDRPLocationInput.Text.EndsWith("MDRP.exe"))
 	        {
 		        MDRPLocationInput.SelectionStart = MDRPLocationInput.Text.Length - 1;
-		        MDRPLocationInput.ForeColor = Color.Green;
-		        MDRPLocationInput.BackColor = Color.Black;
+		        ValidMarker.Visible = true;
 	        } else
 	        {
-		        MDRPLocationInput.ResetBackColor();
-		        MDRPLocationInput.ResetForeColor();
+		        ValidMarker.Visible = false;
 	        }
         }
 

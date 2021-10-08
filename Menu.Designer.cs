@@ -33,6 +33,7 @@ namespace MusicBeePlugin
 		private void InitializeComponent()
 		{
 			this.components = new System.ComponentModel.Container();
+			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Menu));
 			this.MDRPLocationInput = new System.Windows.Forms.TextBox();
 			this.MDRPLocationLabel = new System.Windows.Forms.Label();
 			this.SaveButton = new System.Windows.Forms.Button();
@@ -42,6 +43,9 @@ namespace MusicBeePlugin
 			this.label1 = new System.Windows.Forms.Label();
 			this.AutoCloseButton = new System.Windows.Forms.CheckBox();
 			this.MDRPLocationToolTip = new System.Windows.Forms.ToolTip(this.components);
+			this.SkinSelector = new System.Windows.Forms.ComboBox();
+			this.label2 = new System.Windows.Forms.Label();
+			this.ValidMarker = new System.Windows.Forms.Label();
 			this.SuspendLayout();
 			// 
 			// MDRPLocationInput
@@ -125,13 +129,39 @@ namespace MusicBeePlugin
 			this.MDRPLocationToolTip.InitialDelay = 1000;
 			this.MDRPLocationToolTip.ReshowDelay = 500;
 			// 
+			// SkinSelector
+			// 
+			this.SkinSelector.Location = new System.Drawing.Point(174, 129);
+			this.SkinSelector.Name = "SkinSelector";
+			this.SkinSelector.Size = new System.Drawing.Size(261, 21);
+			this.SkinSelector.TabIndex = 0;
+			// 
+			// label2
+			// 
+			this.label2.Location = new System.Drawing.Point(27, 129);
+			this.label2.Name = "label2";
+			this.label2.Size = new System.Drawing.Size(140, 21);
+			this.label2.TabIndex = 8;
+			this.label2.Text = "Image Pack";
+			this.label2.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+			// 
+			// ValidMarker
+			// 
+			this.ValidMarker.Image = ((System.Drawing.Image)(resources.GetObject("ValidMarker.Image")));
+			this.ValidMarker.Location = new System.Drawing.Point(441, 94);
+			this.ValidMarker.Name = "ValidMarker";
+			this.ValidMarker.Size = new System.Drawing.Size(19, 20);
+			this.ValidMarker.TabIndex = 9;
+			this.ValidMarker.Visible = false;
+			// 
 			// Menu
 			// 
-			this.AutoSize = true;
 			this.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
 			this.BackColor = System.Drawing.SystemColors.ControlDarkDark;
-			this.ClientSize = new System.Drawing.Size(487, 221);
+			this.ClientSize = new System.Drawing.Size(475, 200);
 			this.ControlBox = false;
+			this.Controls.Add(this.ValidMarker);
+			this.Controls.Add(this.label2);
 			this.Controls.Add(this.AutoCloseButton);
 			this.Controls.Add(this.label1);
 			this.Controls.Add(this.AutoRunLabel);
@@ -140,16 +170,25 @@ namespace MusicBeePlugin
 			this.Controls.Add(this.SaveButton);
 			this.Controls.Add(this.MDRPLocationLabel);
 			this.Controls.Add(this.MDRPLocationInput);
+			this.Controls.Add(this.SkinSelector);
 			this.MaximizeBox = false;
 			this.MinimizeBox = false;
 			this.Name = "Menu";
 			this.ShowIcon = false;
 			this.ShowInTaskbar = false;
-			this.Text = "Settings WIndow";
+			this.Text = "Settings Window";
 			this.Load += new System.EventHandler(this.Menu_Load);
 			this.ResumeLayout(false);
 			this.PerformLayout();
 		}
+
+		private System.Windows.Forms.Label ValidMarker;
+
+		private System.Windows.Forms.Label label3;
+
+		private System.Windows.Forms.ComboBox SkinSelector;
+
+		private System.Windows.Forms.Label label2;
 
 		private System.Windows.Forms.CheckBox AutoCloseButton;
 

@@ -5,6 +5,7 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -21,6 +22,7 @@ namespace MusicBeePlugin
 		private static Settings _settings;
 		private Menu menu;
 		private Exception lastEx = null;
+		private const string defaultAssetEndpoint = "https://jojo2357.github.io/MDRP-Bridge-Assets";
 
 		private enum MDRPStatus
 		{
@@ -34,10 +36,14 @@ namespace MusicBeePlugin
 		private MDRPStatus currentStatus = MDRPStatus.NOT_RUNNING;
 		
 		private Image[] images = new Image[5];
+		private TextBox _mdrpLocationBox;
+		private CheckBox AutoRunButton;
+		private CheckBox AutoCloseButton;
+		private ComboBox _skinSelector;
+		private Label ValidMarker;
 
 		public static Settings GetCurrentSettings()
 		{
-			//doRequest("requesting settings", 7532).GetResponse().Close();
 			return _settings ?? SetSettings();
 		}
 
@@ -71,7 +77,7 @@ namespace MusicBeePlugin
 				about.MinInterfaceVersion = MinInterfaceVersion;
 				about.MinApiRevision = MinApiRevision;
 				about.ReceiveNotifications = ReceiveNotificationFlags.PlayerEvents;
-				about.ConfigurationPanelHeight = 0;
+				about.ConfigurationPanelHeight = 150;
 				persistentpath = mbApiInterface.Setting_GetPersistentStoragePath();
 				_settings = File.Exists(Path.Combine(mbApiInterface.Setting_GetPersistentStoragePath(), "mdrpbridgesettings.dat")) ? Settings.FromJson(File.ReadAllText(Path.Combine(mbApiInterface.Setting_GetPersistentStoragePath(), "mdrpbridgesettings.dat"))) : Settings.DEFAULT;
 				CheckAndUpdateStatus();
@@ -208,7 +214,122 @@ namespace MusicBeePlugin
 				}
 			}
 		}
+		
+		public bool Configure(IntPtr panelHandle)
+        {
+            // save any persistent settings in a sub-folder of this path
+            string dataPath = mbApiInterface.Setting_GetPersistentStoragePath();
+            // panelHandle will only be set if you set about.ConfigurationPanelHeight to a non-zero value
+            // keep in mind the panel width is scaled according to the font the user has selected
+            // if about.ConfigurationPanelHeight is set to 0, you can display your own popup window
+            if (panelHandle != IntPtr.Zero)
+            {
+	            _settings = GetCurrentSettings();
+                Panel configPanel = (Panel)Panel.FromHandle(panelHandle);
+                
+                Label closeMDRPLabel = new Label();
+                closeMDRPLabel.Text = "Close MDRP on MB close";
+                closeMDRPLabel.Location = new Point(17, 18);
+                closeMDRPLabel.TextAlign = ContentAlignment.MiddleRight;
+                closeMDRPLabel.Size = new System.Drawing.Size(150, 30);
+                
+                AutoCloseButton = new CheckBox();
+                AutoCloseButton.Location = new Point(174, 22);
+                AutoCloseButton.Size = new System.Drawing.Size(21, 24);
 
+                Label AutoRunLabel = new Label();
+                AutoRunLabel.Text = "Automatically Run MDRP";
+                AutoRunLabel.Location = new Point(16, 58);
+                AutoRunLabel.Size = new System.Drawing.Size(152, 21);
+                AutoRunLabel.TextAlign = ContentAlignment.MiddleRight;
+                
+                AutoRunButton = new CheckBox();
+                AutoRunButton.Location = new Point(174, 58);
+                AutoRunButton.Size = new Size(21, 21);
+                
+                Label MDRPLocationLabel = new Label();
+                MDRPLocationLabel.Location = new Point(68, 94);
+                MDRPLocationLabel.Text = "MDRP Location";
+                MDRPLocationLabel.TextAlign = ContentAlignment.MiddleRight;
+                MDRPLocationLabel.Size = new Size(100, 20);
+                
+                _mdrpLocationBox = new TextBox();
+                _mdrpLocationBox.TextChanged += handleChange;
+                _mdrpLocationBox.Location = new Point(174, 94);
+                _mdrpLocationBox.Size = new Size(261, 20);
+                
+                _mdrpLocationBox.BackColor = Color.FromArgb(mbApiInterface.Setting_GetSkinElementColour(SkinElement.SkinInputControl,
+	                ElementState.ElementStateDefault,
+	                ElementComponent.ComponentBackground));
+                _mdrpLocationBox.ForeColor = Color.FromArgb(mbApiInterface.Setting_GetSkinElementColour(SkinElement.SkinInputControl,
+	                ElementState.ElementStateDefault,
+	                ElementComponent.ComponentForeground));
+                _mdrpLocationBox.BorderStyle = BorderStyle.FixedSingle;
+
+                Label skinSelectorLabel = new Label();
+                skinSelectorLabel.Location = new Point(27, 129);
+                skinSelectorLabel.Text = "Image pack";
+                skinSelectorLabel.TextAlign = ContentAlignment.MiddleRight;
+                skinSelectorLabel.Size = new Size(140, 21);
+                //skinSelectorLabel.Width = runMDRPLabel.Width;
+                
+                _skinSelector = new ComboBox();
+                _skinSelector.Location = new Point(174, 129);
+                _skinSelector.Size = new Size(261, 21);
+                _skinSelector.DataSource = getSkins();
+
+                System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Menu));
+                ValidMarker = new Label();
+                ValidMarker.Image = ((System.Drawing.Image)(resources.GetObject("ValidMarker.Image")));
+                ValidMarker.Location = new System.Drawing.Point(441, 94);
+                ValidMarker.Size = new System.Drawing.Size(19, 20);
+                ValidMarker.Visible = false;
+
+                _mdrpLocationBox.Text = _settings.MDRPLocation;
+                AutoCloseButton.Checked = _settings.KillOnClose;
+                AutoRunButton.Checked = _settings.AutoRun;
+                for (int i = 0; i < _skinSelector.Items.Count; i++)
+                {
+	                if (((SkinSelectorItem)_skinSelector.Items[i]).Text == _settings.AssetPackName)
+	                {
+		                _skinSelector.SelectedItem = _skinSelector.Items[i];
+		                break;
+	                }
+                }
+                configPanel.Controls.AddRange(new Control[] { MDRPLocationLabel, _mdrpLocationBox, AutoRunLabel, AutoRunButton, closeMDRPLabel, AutoCloseButton, skinSelectorLabel, _skinSelector, ValidMarker });
+            }
+            return false;
+        }
+		
+		public void SaveSettings()
+		{
+			SetSettings(new Settings(_mdrpLocationBox.Text, AutoRunButton.Checked, AutoCloseButton.Checked, ((SkinSelectorItem)_skinSelector.SelectedItem).Text));
+		}
+
+		private void handleChange(object obj, EventArgs args)
+		{
+			_mdrpLocationBox.SelectionLength = 0;
+			if (File.Exists(Path.Combine(_mdrpLocationBox.Text, "MDRP.exe")))
+			{
+				_mdrpLocationBox.Text = Path.Combine(_mdrpLocationBox.Text, "MDRP.exe");
+				_mdrpLocationBox.SelectionStart = _mdrpLocationBox.Text.Length;
+				ValidMarker.Visible = true;
+			} else if (File.Exists(Path.Combine(_mdrpLocationBox.Text, "MDRP\\bin\\release\\MDRP.exe")))
+			{
+				_mdrpLocationBox.Text = Path.Combine(_mdrpLocationBox.Text, "MDRP\\bin\\release\\MDRP.exe");
+				_mdrpLocationBox.SelectionStart = _mdrpLocationBox.Text.Length;
+				ValidMarker.Visible = true;
+			} else if (File.Exists(_mdrpLocationBox.Text) && _mdrpLocationBox.Text.EndsWith("MDRP.exe"))
+			{
+				_mdrpLocationBox.SelectionStart = _mdrpLocationBox.Text.Length - 1;
+				ValidMarker.Visible = true;
+			} else
+			{
+				ValidMarker.Visible = false;
+			}
+			SendToDebugServer(ValidMarker.Visible.ToString());
+		}
+		
 		public void Close(PluginCloseReason reason)
 		{
 			try
@@ -258,6 +379,21 @@ namespace MusicBeePlugin
 
 			return request;
 		}
+
+		public static SkinSelectorItem[] getSkins()
+		{
+			WebClient wc = new WebClient();
+			SendToDebugServer(defaultAssetEndpoint + "/hostedpacks.dat");
+			string allpacks = wc.DownloadString(defaultAssetEndpoint + "/hostedpacks.dat");
+			string[] listOfPacks = allpacks.Split('\n').Where((str) => str.Length > 0).ToArray();
+			SkinSelectorItem[] itemsOut = new SkinSelectorItem[listOfPacks.Length];
+			for (int i = 0; i < itemsOut.Length; i++)
+			{
+				itemsOut[i] = new SkinSelectorItem { ID = i + 1, Text = listOfPacks[i] };
+			}
+
+			return itemsOut;
+		}
 		
 		//  presence of this function indicates to MusicBee that this plugin has a dockable panel. MusicBee will create the control and pass it as the panel parameter
         //  you can add your own controls to the panel if needed
@@ -275,7 +411,7 @@ namespace MusicBeePlugin
             {
                 dpiScaling = g.DpiY / 96f;
             }
-			LoadAllImages();
+			LoadAllImages(_settings.AssetPackName);
             panel.Name = "MDRP status";
             panel.Paint += panel_Paint;
             panel.Click += panel_Click;
@@ -289,7 +425,13 @@ namespace MusicBeePlugin
 	        {
 		        //doRequest("clique", 7532).GetResponse().Close();
 		        if (menu.IsDisposed) menu = new Menu();
-		        menu.Show();
+		        //todo add menu coloring to match theme
+		        /*menu.SetColors(Color.FromArgb(mbApiInterface.Setting_GetSkinElementColour(SkinElement.SkinInputControl,
+			        ElementState.ElementStateDefault,
+			        ElementComponent.ComponentBackground)), Color.FromArgb(mbApiInterface.Setting_GetSkinElementColour(SkinElement.SkinInputControl,
+			        ElementState.ElementStateDefault,
+			        ElementComponent.ComponentForeground)));*/
+				menu.Show();
 	        }
 	        catch (Exception ex)
 	        {
@@ -297,10 +439,11 @@ namespace MusicBeePlugin
 	        }
         }
 
-        private void LoadAllImages()
+        private void LoadAllImages(string packName)
         {
-	        string fileDir = Directory.GetCurrentDirectory() + "\\plugins\\MDRP-Bridge";//"C:\\Users\\Joey\\Documents\\GitHub\\MDRP-MusicBee-Bridge\\assets\\";
-	        string assetDir = "https://jojo2357.github.io/MDRP-Bridge-Assets/";
+	        //SendToDebugServer("Loading " + packName + " into " + persistentpath + "\\" + packName + "\\MDRP-Bridge from " + defaultAssetEndpoint + "/" + packName + "/");
+	        string fileDir = persistentpath + "\\MDRP-Bridge\\" + packName;//"C:\\Users\\Joey\\Documents\\GitHub\\MDRP-MusicBee-Bridge\\assets\\";
+	        string assetDir = defaultAssetEndpoint + "//" + packName + "/";
 	        
 	        WebClient wc = new WebClient();
 	        if (!Directory.Exists(fileDir))
