@@ -72,6 +72,11 @@ namespace MusicBeePlugin
 			return _settings = settings;
 		}
 
+		private string GetVersionString()
+		{
+			return about.VersionMajor + "." + about.VersionMinor + "." + about.Revision;
+		}
+
 		public PluginInfo Initialise(IntPtr apiInterfacePtr)
 		{
 			try
@@ -87,7 +92,7 @@ namespace MusicBeePlugin
 				about.Type = PluginType.General;
 				about.VersionMajor = 1; // your plugin version
 				about.VersionMinor = 0;
-				about.Revision = 1;
+				about.Revision = 0;
 				about.MinInterfaceVersion = MinInterfaceVersion;
 				about.MinApiRevision = MinApiRevision;
 				about.ReceiveNotifications = ReceiveNotificationFlags.PlayerEvents;
@@ -184,7 +189,7 @@ namespace MusicBeePlugin
 					                 : 10000);
 				Console.WriteLine(mbApiInterface.Player_GetPosition.Invoke());
 				string json = string.Format(
-					"{{action:\"{5}\",player:\"musicbee\",timestamp:\"{0}\",action:\"{1}\",title:\"{2}\",artist:\"{3}\",album:\"{4}\"}}",
+					"{{debugaction:\"{5}\",player:\"musicbee\",timestamp:\"{0}\",action:\"{1}\",title:\"{2}\",artist:\"{3}\",album:\"{4}\"}}",
 					timestamp.ToString(), action, songtitle.Replace("\"", "\\\""), artist.Replace("\"", "\\\""),
 					albumtitle.Replace("\"", "\\\""), type);
 				Console.WriteLine(json);
@@ -240,6 +245,10 @@ namespace MusicBeePlugin
 				_settings = GetCurrentSettings();
 				Panel configPanel = (Panel)Control.FromHandle(panelHandle);
 
+				Label infoLabel = new Label();
+				infoLabel.Location = new Point(0, 4);
+				infoLabel.Text = "Version: " + GetVersionString();
+				
 				Label closeMDRPLabel = new Label();
 				closeMDRPLabel.Text = "Close MDRP on MB close";
 				closeMDRPLabel.Location = new Point(17, 18);
@@ -311,7 +320,7 @@ namespace MusicBeePlugin
 					}
 				}
 
-				configPanel.Controls.AddRange(new Control[] { MDRPLocationLabel, _mdrpLocationBox, AutoRunLabel, AutoRunButton, closeMDRPLabel, AutoCloseButton, skinSelectorLabel, _skinSelector, ValidMarker });
+				configPanel.Controls.AddRange(new Control[] { infoLabel, MDRPLocationLabel, _mdrpLocationBox, AutoRunLabel, AutoRunButton, closeMDRPLabel, AutoCloseButton, skinSelectorLabel, _skinSelector, ValidMarker });
 			}
 
 			return false;
@@ -470,7 +479,7 @@ namespace MusicBeePlugin
 		{
 			try
 			{
-				if (menu.IsDisposed) menu = new Menu();
+				if (menu == null || menu.IsDisposed) menu = new Menu();
 				//todo add menu coloring to match theme
 				/*menu.SetColors(Color.FromArgb(mbApiInterface.Setting_GetSkinElementColour(SkinElement.SkinInputControl,
 					ElementState.ElementStateDefault,
@@ -531,8 +540,11 @@ namespace MusicBeePlugin
 
 		public void Uninstall()
 		{
-			File.Delete(Path.Combine(persistentpath, "MDRP-Bridge\\mdrpbridgesettings.dat"));
-			File.Delete(Path.Combine(persistentpath, "MDRP-bridge"));
+			foreach (Image image in images)
+			{
+				image.Dispose();
+			}
+			Directory.Delete(Path.Combine(persistentpath, "MDRP-bridge"), true);
 		}
 
 		private void SendToDebugServer(string message)
