@@ -92,7 +92,7 @@ namespace MusicBeePlugin
 				about.Type = PluginType.General;
 				about.VersionMajor = 1; // your plugin version
 				about.VersionMinor = 0;
-				about.Revision = 0;
+				about.Revision = 1;
 				about.MinInterfaceVersion = MinInterfaceVersion;
 				about.MinApiRevision = MinApiRevision;
 				about.ReceiveNotifications = ReceiveNotificationFlags.PlayerEvents;
@@ -299,6 +299,7 @@ namespace MusicBeePlugin
 				_skinSelector.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
 				_skinSelector.Location = new Point(174, 129);
 				_skinSelector.Size = new Size(261, 21);
+				_skinSelector.BindingContext = new BindingContext();
 				_skinSelector.DataSource = getSkins();
 
 				System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Menu));
@@ -328,9 +329,13 @@ namespace MusicBeePlugin
 
 		public void SaveSettings()
 		{
-			if (_settings.AssetPackName != ((SkinSelectorItem)_skinSelector.SelectedItem).Text)
-				LoadAllImages(((SkinSelectorItem)_skinSelector.SelectedItem).Text);
+			bool newSettings = _settings.AssetPackName != ((SkinSelectorItem)_skinSelector.SelectedItem).Text;
 			SetSettings(new Settings(_mdrpLocationBox.Text, AutoRunButton.Checked, AutoCloseButton.Checked, ((SkinSelectorItem)_skinSelector.SelectedItem).Text));
+			if (newSettings)
+			{
+				LoadAllImages(_settings.AssetPackName);
+				penel.Refresh();
+			}
 		}
 
 		private void handleChange(object obj, EventArgs args)
@@ -515,10 +520,15 @@ namespace MusicBeePlugin
 			if (!File.Exists(fileDir + "\\offline.png"))
 				wc.DownloadFile(assetDir + "offline.png", fileDir + "\\offline.png");
 
+			if (images[(int)MDRPStatus.Keyed] != null) images[(int)MDRPStatus.Keyed].Dispose();
 			images[(int)MDRPStatus.Keyed] = Image.FromFile(fileDir + "\\keyed.png"); //Image.FromFile(assetDir + "keyed.png");
+			if (images[(int)MDRPStatus.Paused] != null) images[(int)MDRPStatus.Paused].Dispose();
 			images[(int)MDRPStatus.Paused] = Image.FromFile(fileDir + "\\paused.png");
+			if (images[(int)MDRPStatus.Unkeyed] != null) images[(int)MDRPStatus.Unkeyed].Dispose();
 			images[(int)MDRPStatus.Unkeyed] = Image.FromFile(fileDir + "\\unkeyed.png");
+			if (images[(int)MDRPStatus.KeyedWrong] != null) images[(int)MDRPStatus.KeyedWrong].Dispose();
 			images[(int)MDRPStatus.KeyedWrong] = Image.FromFile(fileDir + "\\invalid.png");
+			if (images[(int)MDRPStatus.NotRunning] != null) images[(int)MDRPStatus.NotRunning].Dispose();
 			images[(int)MDRPStatus.NotRunning] = Image.FromFile(fileDir + "\\offline.png");
 		}
 
@@ -552,7 +562,7 @@ namespace MusicBeePlugin
 			try
 			{
 #if DEBUG
-		        if (debugging)
+				if (debugging)
 					doRequest(message, 7532, 500).GetResponse().Close();
 #else
 				File.AppendAllText(Path.Combine(persistentpath, "latest.log"), message + "\n");
