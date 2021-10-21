@@ -1,5 +1,5 @@
 # MDRP-MusicBee-Bridge
-This repo works on developing a connection between [MDRP](https://github.com/jojo2357/Music-Discord-Rich-Presence) starting with MDRP version 1.6.0. Video tutorial coming soon.
+This repo works on developing a connection between [MDRP](https://github.com/jojo2357/Music-Discord-Rich-Presence) starting with MDRP version 1.6.0. Video tutorial: https://youtu.be/GucN2WiteOM
 
 ## Installation
 There are no special instructions for installation. Add the DLL to the plugins folder, or go through the mb api
