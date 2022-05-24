@@ -43,12 +43,13 @@ namespace MusicBeePlugin
 			Unkeyed,
 			Paused,
 			KeyedWrong,
+			RemotelyFound,
 			NotRunning
 		}
 
 		private MDRPStatus currentStatus = MDRPStatus.NotRunning;
 
-		private Image[] images = new Image[5];
+		private Image[] images = new Image[6];
 		private TextBox _mdrpLocationBox;
 		private CheckBox AutoRunButton;
 		private CheckBox AutoCloseButton;
@@ -67,7 +68,7 @@ namespace MusicBeePlugin
 
 		public Settings SetSettings(Settings settings)
 		{
-			//SendToDebugServer("Saving to " + Path.Combine(persistentpath, "MDRP-Bridge\\mdrpbridgesettings.dat"));
+			//SendToDebugServer(settings.AssetPackName + ", " + settings.AutoRun + ", " + settings.KillOnClose + ", " + settings.MDRPLocation + " to " + Path.Combine(persistentpath, "MDRP-Bridge\\mdrpbridgesettings.dat") + " exactly " + settings.ToJson());
 			File.WriteAllText(Path.Combine(persistentpath, "MDRP-Bridge\\mdrpbridgesettings.dat"), settings.ToJson());
 			return _settings = settings;
 		}
@@ -90,14 +91,16 @@ namespace MusicBeePlugin
 				about.Author = "Smaltin & jojo2357";
 				about.TargetApplication = "MDRP Status"; //  the name of a Plugin Storage device or panel header for a dockable panel
 				about.Type = PluginType.General;
-				about.VersionMajor = 1; // your plugin version
-				about.VersionMinor = 0;
-				about.Revision = 1;
+				about.VersionMajor = 1; // your plugin version 
+				about.VersionMinor = 1;
+				about.Revision = 0;
 				about.MinInterfaceVersion = MinInterfaceVersion;
 				about.MinApiRevision = MinApiRevision;
 				about.ReceiveNotifications = ReceiveNotificationFlags.PlayerEvents;
 				about.ConfigurationPanelHeight = 150;
 				persistentpath = mbApiInterface.Setting_GetPersistentStoragePath();
+				if (!Directory.Exists(Path.Combine(persistentpath, "MDRP-Bridge")))
+					Directory.CreateDirectory(Path.Combine(persistentpath, "MDRP-Bridge"));
 				_settings = File.Exists(Path.Combine(persistentpath, "MDRP-Bridge\\mdrpbridgesettings.dat")) ? Settings.FromJson(File.ReadAllText(Path.Combine(mbApiInterface.Setting_GetPersistentStoragePath(), "MDRP-Bridge\\mdrpbridgesettings.dat"))) : Settings.DEFAULT;
 				CheckAndUpdateStatus();
 				File.WriteAllText(Path.Combine(persistentpath, "MDRP-Bridge\\latest.log"), "");
@@ -137,7 +140,7 @@ namespace MusicBeePlugin
 					startInfo.CreateNoWindow = true;
 					startInfo.UseShellExecute = true;
 					startInfo.FileName = _settings.MDRPLocation;
-					startInfo.WindowStyle = ProcessWindowStyle.Minimized;
+					startInfo.WindowStyle = ProcessWindowStyle.Hidden;
 					startInfo.Arguments = "MusicBee";
 					Process.Start(startInfo);
 					try
@@ -187,12 +190,13 @@ namespace MusicBeePlugin
 					                 ? mbApiInterface.NowPlaying_GetDuration.Invoke() -
 					                   mbApiInterface.Player_GetPosition.Invoke()
 					                 : 10000);
-				Console.WriteLine(mbApiInterface.Player_GetPosition.Invoke());
+				//Console.WriteLine(mbApiInterface.Player_GetPosition.Invoke());
 				string json = string.Format(
 					"{{debugaction:\"{5}\",player:\"musicbee\",timestamp:\"{0}\",action:\"{1}\",title:\"{2}\",artist:\"{3}\",album:\"{4}\"}}",
 					timestamp.ToString(), action, songtitle.Replace("\"", "\\\""), artist.Replace("\"", "\\\""),
 					albumtitle.Replace("\"", "\\\""), type);
-				Console.WriteLine(json);
+				SendToDebugServer(json);
+				//Console.WriteLine(json);
 				try
 				{
 					HttpWebRequest request = doRequest(json, 2357);
@@ -221,6 +225,10 @@ namespace MusicBeePlugin
 					{
 						currentStatus = MDRPStatus.Unkeyed;
 					}
+					else if (text.Contains("response:\"found remotely\""))
+					{
+						currentStatus = MDRPStatus.RemotelyFound;
+					}
 
 					if (currentStatus != lastStatus)
 						penel.Refresh();
@@ -248,7 +256,7 @@ namespace MusicBeePlugin
 				Label infoLabel = new Label();
 				infoLabel.Location = new Point(0, 4);
 				infoLabel.Text = "Version: " + GetVersionString();
-				
+
 				Label closeMDRPLabel = new Label();
 				closeMDRPLabel.Text = "Close MDRP on MB close";
 				closeMDRPLabel.Location = new Point(17, 18);
@@ -503,7 +511,7 @@ namespace MusicBeePlugin
 		public void LoadAllImages(string packName)
 		{
 			//SendToDebugServer("Loading " + packName + " into " + persistentpath + "\\" + packName + "\\MDRP-Bridge from " + defaultAssetEndpoint + "/" + packName + "/");
-			string fileDir = persistentpath + "\\MDRP-Bridge\\" + packName; //"C:\\Users\\Joey\\Documents\\GitHub\\MDRP-MusicBee-Bridge\\assets\\";
+			string fileDir = persistentpath + "\\MDRP-Bridge\\" + packName; 
 			string assetDir = defaultAssetEndpoint + "//" + packName + "/";
 
 			WebClient wc = new WebClient();
@@ -517,6 +525,8 @@ namespace MusicBeePlugin
 				wc.DownloadFile(assetDir + "unkeyed.png", fileDir + "\\unkeyed.png");
 			if (!File.Exists(fileDir + "\\invalid.png"))
 				wc.DownloadFile(assetDir + "invalid.png", fileDir + "\\invalid.png");
+			if (!File.Exists(fileDir + "\\remotely_found.png"))
+				wc.DownloadFile(assetDir + "remotely_found.png", fileDir + "\\remotely_found.png");
 			if (!File.Exists(fileDir + "\\offline.png"))
 				wc.DownloadFile(assetDir + "offline.png", fileDir + "\\offline.png");
 
@@ -528,6 +538,8 @@ namespace MusicBeePlugin
 			images[(int)MDRPStatus.Unkeyed] = Image.FromFile(fileDir + "\\unkeyed.png");
 			if (images[(int)MDRPStatus.KeyedWrong] != null) images[(int)MDRPStatus.KeyedWrong].Dispose();
 			images[(int)MDRPStatus.KeyedWrong] = Image.FromFile(fileDir + "\\invalid.png");
+			if (images[(int)MDRPStatus.RemotelyFound] != null) images[(int)MDRPStatus.RemotelyFound].Dispose();
+			images[(int)MDRPStatus.RemotelyFound] = Image.FromFile(fileDir + "\\remotely_found.png");
 			if (images[(int)MDRPStatus.NotRunning] != null) images[(int)MDRPStatus.NotRunning].Dispose();
 			images[(int)MDRPStatus.NotRunning] = Image.FromFile(fileDir + "\\offline.png");
 		}
@@ -550,11 +562,25 @@ namespace MusicBeePlugin
 
 		public void Uninstall()
 		{
-			foreach (Image image in images)
+			try
 			{
-				image.Dispose();
+				foreach (Image image in images)
+				{
+					try
+					{
+						image.Dispose();
+					}
+					catch (Exception e)
+					{
+					}
+				}
+
+				Directory.Delete(Path.Combine(persistentpath, "MDRP-bridge"), true);
+				File.Delete(Path.Combine(persistentpath, "log.log"));
 			}
-			Directory.Delete(Path.Combine(persistentpath, "MDRP-bridge"), true);
+			catch (Exception)
+			{
+			}
 		}
 
 		private void SendToDebugServer(string message)
@@ -565,6 +591,7 @@ namespace MusicBeePlugin
 				if (debugging)
 					doRequest(message, 7532, 500).GetResponse().Close();
 #else
+				//doRequest(message, 7532, 500).GetResponse().Close();
 				File.AppendAllText(Path.Combine(persistentpath, "latest.log"), message + "\n");
 #endif
 			}
