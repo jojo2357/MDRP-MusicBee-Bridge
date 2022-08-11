@@ -12,7 +12,7 @@ namespace MusicBeePlugin
 
         [StructLayout(LayoutKind.Sequential)]
         public struct MusicBeeApiInterface
-        {
+        { 
             public void Initialise(IntPtr apiInterfacePtr)
             {
                 CopyMemory(ref this, apiInterfacePtr, 4);

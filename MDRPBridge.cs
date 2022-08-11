@@ -29,12 +29,12 @@ namespace MusicBeePlugin
 		private const int PackRescanFrequency = 1800000;
 		private static string[] _listOfPacks;
 		private static readonly Stopwatch _lastPackCheckTimer = new Stopwatch();
-		private bool debugging = true;
+		private bool debugging = false;
 		private static readonly char[] illegalChars = Path.GetInvalidPathChars();
 
 		public void Refresh()
 		{
-			penel.Refresh();
+			penel?.Refresh();
 		}
 
 		private enum MDRPStatus
@@ -142,7 +142,8 @@ namespace MusicBeePlugin
 					startInfo.FileName = _settings.MDRPLocation;
 					startInfo.WindowStyle = ProcessWindowStyle.Hidden;
 					startInfo.Arguments = "MusicBee";
-					Process.Start(startInfo);
+					var p = Process.Start(startInfo);
+					SendToDebugServer("Starting MDRP");
 					try
 					{
 						HttpWebResponse response = (HttpWebResponse)doRequest("{player:\"MusicBee\"}", 2357, 1500).GetResponse();
@@ -151,7 +152,6 @@ namespace MusicBeePlugin
 						{
 							resptext = reader.ReadToEnd();
 						}
-
 						response.Close();
 						if (resptext.Contains("MDRP"))
 						{
@@ -167,6 +167,10 @@ namespace MusicBeePlugin
 						SendToDebugServer("Did not start in time");
 					}
 				}
+				else
+				{
+					SendToDebugServer("Didnt like it\n" + _settings.ToJson());
+				}
 			}
 		}
 
@@ -180,68 +184,72 @@ namespace MusicBeePlugin
 			// perform some action depending on the notification type
 			if (type == NotificationType.TrackChanged || type == NotificationType.PlayStateChanged)
 			{
-				//Console.WriteLine("Ping pong");
-				string artist = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Artist);
-				string albumtitle = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Album);
-				string songtitle = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.TrackTitle);
-				string action = (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing) ? "play" : "pause";
-				long timestamp = (long)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds +
-				                 (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing
-					                 ? mbApiInterface.NowPlaying_GetDuration.Invoke() -
-					                   mbApiInterface.Player_GetPosition.Invoke()
-					                 : 10000);
-				//Console.WriteLine(mbApiInterface.Player_GetPosition.Invoke());
-				string json = string.Format(
-					"{{debugaction:\"{5}\",player:\"musicbee\",timestamp:\"{0}\",action:\"{1}\",title:\"{2}\",artist:\"{3}\",album:\"{4}\"}}",
-					timestamp.ToString(), action, songtitle.Replace("\"", "\\\""), artist.Replace("\"", "\\\""),
-					albumtitle.Replace("\"", "\\\""), type);
-				SendToDebugServer(json);
-				//Console.WriteLine(json);
-				try
-				{
-					HttpWebRequest request = doRequest(json, 2357);
-					HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-					string text = "";
-					using (StreamReader reader = new StreamReader(response.GetResponseStream(), Encoding.UTF8))
-					{
-						text = reader.ReadToEnd();
-					}
+				HandleSendingStatus(type);
+			}
+		}
 
-					text = text.ToLower();
-					MDRPStatus lastStatus = currentStatus;
-					if (action == "pause")
-					{
-						currentStatus = MDRPStatus.Paused;
-					}
-					else if (text.Contains("response:\"keyed successfully\""))
-					{
-						currentStatus = MDRPStatus.Keyed;
-					}
-					else if (text.Contains("response:\"keyed incorrectly\""))
-					{
-						currentStatus = MDRPStatus.KeyedWrong;
-					}
-					else if (text.Contains("response:\"no key\""))
-					{
-						currentStatus = MDRPStatus.Unkeyed;
-					}
-					else if (text.Contains("response:\"found remotely\""))
-					{
-						currentStatus = MDRPStatus.RemotelyFound;
-					}
-
-					if (currentStatus != lastStatus)
-						penel.Refresh();
-					Console.WriteLine(text);
-					response.Close();
-				}
-				catch (Exception e)
+		private void HandleSendingStatus(NotificationType type)
+		{
+			//Console.WriteLine("Ping pong");
+			string artist = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Artist);
+			string albumtitle = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Album);
+			string songtitle = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.TrackTitle);
+			string action = (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing) ? "play" : "pause";
+			long timestamp = (long)(DateTime.UtcNow.Subtract(new DateTime(1970, 1, 1))).TotalMilliseconds +
+			                 (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing
+				                 ? mbApiInterface.NowPlaying_GetDuration.Invoke() -
+				                   mbApiInterface.Player_GetPosition.Invoke()
+				                 : 10000);
+			//Console.WriteLine(mbApiInterface.Player_GetPosition.Invoke());
+			string json = string.Format(
+				"{{debugaction:\"{5}\",player:\"musicbee\",timestamp:\"{0}\",action:\"{1}\",title:\"{2}\",artist:\"{3}\",album:\"{4}\"}}",
+				timestamp.ToString(), action, songtitle.Replace("\"", "\\\""), artist.Replace("\"", "\\\""),
+				albumtitle.Replace("\"", "\\\""), type);
+			//SendToDebugServer(json);
+			//Console.WriteLine(json);
+			try
+			{
+				HttpWebRequest request = doRequest(json, 2357);
+				HttpWebResponse response = (HttpWebResponse)request.GetResponse();
+				string text = "";
+				using (StreamReader reader = new StreamReader(response.GetResponseStream() ?? throw new InvalidOperationException("Response was null"), Encoding.UTF8))
 				{
-					SendToDebugServer(e.ToString());
-					currentStatus = MDRPStatus.NotRunning;
-					penel.Refresh();
-					//Console.WriteLine("MDRP not open");
+					text = reader.ReadToEnd();
 				}
+
+				text = text.ToLower();
+				MDRPStatus lastStatus = currentStatus;
+				if (action == "pause")
+				{
+					currentStatus = MDRPStatus.Paused;
+				}
+				else if (text.Contains("response:\"keyed successfully\""))
+				{
+					currentStatus = MDRPStatus.Keyed;
+				}
+				else if (text.Contains("response:\"keyed incorrectly\""))
+				{
+					currentStatus = MDRPStatus.KeyedWrong;
+				}
+				else if (text.Contains("response:\"no key\""))
+				{
+					currentStatus = MDRPStatus.Unkeyed;
+				}
+				else if (text.Contains("response:\"found remotely\""))
+				{
+					currentStatus = MDRPStatus.RemotelyFound;
+				}
+
+				if (currentStatus != lastStatus)
+					Refresh();//penel.Refresh();
+				response.Close();
+			}
+			catch (Exception e)
+			{
+				SendToDebugServer(e.ToString());
+				currentStatus = MDRPStatus.NotRunning;
+				Refresh();//penel.Refresh();
+				//Console.WriteLine("MDRP not open");
 			}
 		}
 
@@ -342,7 +350,7 @@ namespace MusicBeePlugin
 			if (newSettings)
 			{
 				LoadAllImages(_settings.AssetPackName);
-				penel.Refresh();
+				Refresh();//penel.Refresh();
 			}
 		}
 

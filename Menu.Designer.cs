@@ -93,7 +93,7 @@ namespace MusicBeePlugin
 			this.AutoRun.Name = "AutoRun";
 			this.AutoRun.Size = new System.Drawing.Size(21, 21);
 			this.AutoRun.TabIndex = 4;
-			this.MDRPLocationToolTip.SetToolTip(this.AutoRun, "If MB detects that MDRP is not running and this setting is enabled, it will attem" + "pt to start MDRP");
+			this.MDRPLocationToolTip.SetToolTip(this.AutoRun, "If MB detects that MDRP is not running and this setting is enabled, it will attempt to start MDRP");
 			this.AutoRun.UseVisualStyleBackColor = true;
 			// 
 			// AutoRunLabel
