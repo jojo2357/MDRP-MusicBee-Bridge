@@ -92,7 +92,7 @@ namespace MusicBeePlugin
 				about.TargetApplication = "MDRP Status"; //  the name of a Plugin Storage device or panel header for a dockable panel
 				about.Type = PluginType.General;
 				about.VersionMajor = 1; // your plugin version 
-				about.VersionMinor = 1;
+				about.VersionMinor = 2;
 				about.Revision = 0;
 				about.MinInterfaceVersion = MinInterfaceVersion;
 				about.MinApiRevision = MinApiRevision;
@@ -192,6 +192,7 @@ namespace MusicBeePlugin
 		{
 			//Console.WriteLine("Ping pong");
 			string artist = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Artist);
+			string albumartist = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.AlbumArtist);
 			string albumtitle = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.Album);
 			string songtitle = mbApiInterface.NowPlaying_GetFileTag(MetaDataType.TrackTitle);
 			string action = (mbApiInterface.Player_GetPlayState.Invoke() == PlayState.Playing) ? "play" : "pause";
@@ -202,9 +203,9 @@ namespace MusicBeePlugin
 				                 : 10000);
 			//Console.WriteLine(mbApiInterface.Player_GetPosition.Invoke());
 			string json = string.Format(
-				"{{debugaction:\"{5}\",player:\"musicbee\",timestamp:\"{0}\",action:\"{1}\",title:\"{2}\",artist:\"{3}\",album:\"{4}\"}}",
+				"{{debugaction:\"{5}\",player:\"musicbee\",timestamp:\"{0}\",action:\"{1}\",title:\"{2}\",artist:\"{3}\",album_artist:\"{6}\",album:\"{4}\"}}",
 				timestamp.ToString(), action, songtitle.Replace("\"", "\\\""), artist.Replace("\"", "\\\""),
-				albumtitle.Replace("\"", "\\\""), type);
+				albumtitle.Replace("\"", "\\\""), type, albumartist.Replace("\"", "\\\""));
 			//SendToDebugServer(json);
 			//Console.WriteLine(json);
 			try
